@@ -35,6 +35,7 @@ services:
       - |
         set -e
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic user-events --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic user-events-dlq --partitions 1 --replication-factor 1
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
 
   producer:
@@ -46,6 +47,7 @@ services:
       KAFKA_BOOTSTRAP: kafka:9092
       EVENTS_PER_TICK: 5
       TICK_SECONDS: 0.5
+      BAD_EVENT_RATE: 0.03
     restart: unless-stopped
 
   postgres:
@@ -74,6 +76,7 @@ services:
       KAFKA_BOOTSTRAP: kafka:9092
     volumes:
       - ./.ivy-cache:/tmp/.ivy
+      - spark-data:/data
     ports:
       - "4040:4040"
     command:
@@ -87,3 +90,6 @@ services:
       - --py-files
       - /app/transforms.py
       - /app/streaming_job.py
+
+volumes:
+  spark-data:

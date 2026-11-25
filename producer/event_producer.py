@@ -1,4 +1,4 @@
-"""Synthetic clickstream producer."""
+"""Synthetic clickstream producer (with a small share of malformed events)."""
 import json
 import logging
 import os
@@ -26,11 +26,26 @@ def generate_event() -> dict:
     }
 
 
+def generate_malformed() -> bytes:
+    kind = random.choice(["garbage", "missing_field", "bad_type", "unknown_event"])
+    event = generate_event()
+    if kind == "garbage":
+        return b"{this is not json"
+    if kind == "missing_field":
+        del event["user_id"]
+    elif kind == "bad_type":
+        event["user_id"] = "not-a-number"
+    elif kind == "unknown_event":
+        event["event_type"] = "teleport"
+    return json.dumps(event).encode()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     topic = os.getenv("TOPIC", "user-events")
     per_tick = int(os.getenv("EVENTS_PER_TICK", "5"))
     tick = float(os.getenv("TICK_SECONDS", "0.5"))
+    bad_rate = float(os.getenv("BAD_EVENT_RATE", "0.03"))
 
     producer = Producer(
         {
@@ -60,14 +75,13 @@ def main() -> None:
     last_log = time.time()
     while running:
         for _ in range(per_tick):
-            event = generate_event()
+            if random.random() < bad_rate:
+                key, value = None, generate_malformed()
+            else:
+                event = generate_event()
+                key, value = str(event["user_id"]), json.dumps(event).encode()
             try:
-                producer.produce(
-                    topic,
-                    key=str(event["user_id"]),
-                    value=json.dumps(event).encode(),
-                    on_delivery=on_delivery,
-                )
+                producer.produce(topic, key=key, value=value, on_delivery=on_delivery)
             except BufferError:
                 producer.poll(1)
         producer.poll(0)
