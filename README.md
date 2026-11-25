@@ -4,6 +4,8 @@ A streaming data pipeline built end to end: a Python producer publishes clickstr
 
 > Status: core pipeline working. Grafana dashboard, tests and CI are in progress (see [Roadmap](#roadmap)).
 
+![Dashboard](docs/dashboard.png)
+
 ## Architecture
 
 ```mermaid
